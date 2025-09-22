@@ -29,8 +29,10 @@ graph TD
     WebBroker[WebBroker]
     MarketData[Market Data APIs optional]
     TradeJournal[Trade Journal App]
+    SecureDevice[Secure Device<br><i>personal computer<i/>]
 
-    user --> |Uploads Confirmation PDFs| TradeJournal
+    user --> |Stores original creates mask copy| SecureDevice
+    SecureDevice --> |Uploads Masked Confirmation PDFs| TradeJournal
     user --> |views trades, notes, dashboards| TradeJournal
     WebBroker --> |Provides Trade Confirmations<br><i>manual download</i>| user
     MarketData --> |Provides Market Data for enrichment| TradeJournal
@@ -42,34 +44,44 @@ graph TD
 ```mermaid
 graph TD
     User[Trader You]
-
+    subgraph SecureLocation[Secure Device <br><i>ex: personal laptop</i>]
+        NewPDFFolder[New PDF Folder]
+        MaskedPDFFolder[Masked PDF Folder]
+        OriginalsFolder
+        PDFMaskerFileWatcher[Trade Masker<br>File Watcher]
+        Uploader[Trade Uploader<br>File Watcher]
+        %% Interactions
+        PDFMaskerFileWatcher --> |stores| OriginalsFolder
+        NewPDFFolder --> |PDF<br><i>file watcher</i>| PDFMaskerFileWatcher 
+        PDFMaskerFileWatcher --> |masked pdf| MaskedPDFFolder
+        MaskedPDFFolder --> |masked pdf<br><i>file watcher</i>| Uploader
+    end
+    Uploader -->|masked trade pdf<br>http/rest/post| FileStorage
     subgraph TradeJournalApp
         UI[Trade Journal UI<br><i>SPA/Angular</i>]
         DB[Database<br><i>Mongo</i>]
-        Uploader[Uploader Service]
         FileStorage[PDFFileStorage<br><i>Rest API + File System</i>]
         Masking[PDFMaskingProcessor]
         Parser[ParsingProcessor]
         EP[Event Platform<br><i>Kafka</i>]
+        FileStorage -->| | Masking
     end
     Comment1[💬 secure deployment b/c confidential data, ex: unmasked financial docs]:::comment
     classDef comment fill:#fff8b0,stroke:#391,stroke-width:1px,stroke-dasharray:5 5
 
     %% User interaction
-    User -->|Uploads PDF| Uploader
+    User -->|Uploads PDF| NewPDFFolder
     User -->|Views Trades, Notes, Dashboards| UI
     UI --> |Trade Data<br><i>CRUD</i>| DB
 
     %%Backend Flow
-    Uploader -->|Store unmasked pdf<br>generate masked PDF| FileStorage
-    FileStorage
-
+    
     %% Event flow
     
-    FileStorage -->| | Masking
+    
     Masking -->|PDFMasked event<br>masked file reference| Parser
     Parser -->|TradeParsed event<br>structured trades| DB
-    Comment1 -.-> FileStorage
+    
 
 ```
 
@@ -87,7 +99,7 @@ graph TD
     - Mitigation: 
         - Mask Financial records early to scrub sensitive info
         - Masked files will be used through out system
-        - Originals for reference/audit and kept secure (local) 
+        - Originals for reference/audit and kept extra secure, ex: personal device 
 
 ---
 ## Assumptions
@@ -104,19 +116,48 @@ graph TD
 ## Option Analysis
 
 ## Decision Log
-- **decision made** yyyy-dd-mm -  rational
+``` text
+*Template*
+- yyyy-mm-dd **decision made**
+    - **Rational:** 
+    - **Consequences:**
+```
+
+- 2025-10-21 – **Masking moved earlier in ingestion**
+  - **Rationale:** Enforce privacy of originals by ensuring masking and updating occur early within a separate trust boundary (e.g., personal computer).  
+  - **Consequences:**  
+    - Originals remain secured locally.  
+    - Rest of system can safely move to the cloud without risk of leaking personal data.  
+
 
 ## Outstanding
+```
+*Template*
 - **Item**
     -**Opened:** yyyy-mm-dd
     -**closed:** yyyy-mm-dd
     - Details
+```
+
 ## Architecture Integration 
-### Components
-#### FinancialStatementsMaskerCLI
+### WebBroker (System / 3rd party)
+- My trade brokerage system
+- Manual interaction, secure integration not supported
+### Secure Device (System)
+- Personal computer
+- Secure Trusted Boundary 
+- Hosts original financial statements, generates masked versions and uploads to TradeJournal8 via TradeStorageService
+
+#### TradeMaskerFileWatcher
 - **Purpose:** Mask sensitive information (account numbers, personally identifiable information) in PDFs.
-- **Inputs/Outputs:** Input PDFs → Masked PDFs
-- **Notes:** Self-contained; version independently; CLI interface.
+- **Inputs/Outputs:** Input PDFs (file folder) → Masked PDFs (filefolder)
+
+#### TradeUpdaterFileWatcher
+- **Purpose:** Uploads files to TradeFileStorage via API
+- **Inputs/Outputs:** Input PDFs (file folder) → Output Rest Call to service
+
+### TradeJournal8 (System)
+
 
 #### FinancialStatementsProcessor
 - **Purpose:** Parse financial statements and confirmations into structured JSON.
