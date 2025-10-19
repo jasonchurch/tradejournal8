@@ -46,17 +46,17 @@ graph TD
     User[Trader You]
     subgraph SecureLocation[Secure Device <br><i>ex: personal laptop</i>]
         NewPDFFolder[New PDF Folder]
-        MaskedPDFFolder[Masked PDF Folder]
+        MaskedTextFolder[Masked PDF Folder]
         OriginalsFolder
         PDFMaskerFileWatcher[Trade Masker<br>File Watcher]
         Uploader[Trade Uploader<br>File Watcher]
         %% Interactions
         PDFMaskerFileWatcher --> |stores| OriginalsFolder
         NewPDFFolder --> |PDF<br><i>file watcher</i>| PDFMaskerFileWatcher 
-        PDFMaskerFileWatcher --> |masked pdf| MaskedPDFFolder
-        MaskedPDFFolder --> |masked pdf<br><i>file watcher</i>| Uploader
+        PDFMaskerFileWatcher --> |masked text| MaskedTextFolder
+        MaskedTextFolder --> |masked text<br><i>file watcher</i>| Uploader
     end
-    Uploader -->|masked trade pdf<br>http/rest/post| FileStorage
+    Uploader -->|masked trade text<br>http/rest/post| FileStorage
     subgraph TradeJournalApp
         UI[Trade Journal UI<br><i>SPA/Angular</i>]
         DB[Database<br><i>Mongo</i>]
@@ -122,8 +122,15 @@ graph TD
     - **Rational:** 
     - **Consequences:**
 ```
-
-- 2025-10-21 – **Masking moved earlier in ingestion**
+- 2025-10-18 - **Mask to txt file instead of PDF**
+    - **Rational**: 
+        - Generating a Masked PDF file much more complex than expected
+        - Not good learning ROI
+    - **Consequences:**
+        - Generate a masked txt file instead.
+        - hyperlink to original PDF if user on laptop
+        
+- 2025-09-21 – **Masking moved earlier in ingestion**
   - **Rationale:** Enforce privacy of originals by ensuring masking and updating occur early within a separate trust boundary (e.g., personal computer).  
   - **Consequences:**  
     - Originals remain secured locally.  
@@ -143,6 +150,8 @@ graph TD
 ### WebBroker (System / 3rd party)
 - My trade brokerage system
 - Manual interaction, secure integration not supported
+
+
 ### Secure Device (System)
 - Personal computer
 - Secure Trusted Boundary 
@@ -150,23 +159,24 @@ graph TD
 
 #### TradeMaskerFileWatcher
 - **Purpose:** Mask sensitive information (account numbers, personally identifiable information) in PDFs.
-- **Inputs/Outputs:** Input PDFs (file folder) → Masked PDFs (filefolder)
+- **Inputs/Outputs:** Input PDFs (file folder) → Masked Text File (filefolder)
 
 #### TradeUpdaterFileWatcher
 - **Purpose:** Uploads files to TradeFileStorage via API
-- **Inputs/Outputs:** Input PDFs (file folder) → Output Rest Call to service
+- **Inputs/Outputs:** Input Masked Text File (file folder) → Output Rest Call to service
+
 
 ### TradeJournal8 (System)
 
 
 #### FinancialStatementsProcessor
 - **Purpose:** Parse financial statements and confirmations into structured JSON.
-- **Inputs/Outputs:** PDFs → JSON
+- **Inputs/Outputs:** Masked Text File → JSON
 - **Notes:** Handles multiple formats; provides structured data for storage and analysis.
 
 #### TradeStorageService
-- **Purpose:** Store PDFs and link parsed data.
-- **Inputs/Outputs:** JSON + PDFs → MongoDB or other storage
+- **Purpose:** Store Masked Text File and link parsed data.
+- **Inputs/Outputs:** JSON + Masked Text File → MongoDB or other storage
 - **Notes:** Provides a single source of truth for data access.
 
 #### UIAngular / UIReact
