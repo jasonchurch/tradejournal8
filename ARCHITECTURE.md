@@ -46,17 +46,19 @@ graph TD
     User[Trader You]
     subgraph SecureLocation[Secure Device <br><i>ex: personal laptop</i>]
         NewPDFFolder[New PDF Folder]
-        MaskedTextFolder[Masked PDF Folder]
-        OriginalsFolder
-        PDFMaskerFileWatcher[Trade Masker<br>File Watcher]
-        Uploader[Trade Uploader<br>File Watcher]
+        localDB[Local Archive DB<br><i>SQLite file in root folder</i>]
+        TradeFileWatcher[Trade File Watcher]
+        OriginalsFolder[Local Trade Archive<br><i>ex: folder on secure laptop</i>]
+        
         %% Interactions
-        PDFMaskerFileWatcher --> |stores| OriginalsFolder
-        NewPDFFolder --> |PDF<br><i>file watcher</i>| PDFMaskerFileWatcher 
-        PDFMaskerFileWatcher --> |masked text| MaskedTextFolder
-        MaskedTextFolder --> |masked text<br><i>file watcher</i>| Uploader
+        localDB --> |existing HashIDs| TradeFileWatcher
+        TradeFileWatcher --> |<br><i>PDF, Masked Text| OriginalsFolder
+        TradeFileWatcher --> |stores<br><i>hash ID, File URL| localDB
+        
+        NewPDFFolder --> |Trade PDF<br><i>ex: trade confirms</i>| TradeFileWatcher
+
     end
-    Uploader -->|masked trade text<br>http/rest/post| FileStorage
+    TradeFileWatcher -->|masked text, hashid, URI| FileStorage
     subgraph TradeJournalApp
         UI[Trade Journal UI<br><i>SPA/Angular</i>]
         DB[Database<br><i>Mongo</i>]
@@ -66,7 +68,7 @@ graph TD
         EP[Event Platform<br><i>Kafka</i>]
         FileStorage -->| | Masking
     end
-    Comment1[💬 secure deployment b/c confidential data, ex: unmasked financial docs]:::comment
+    Comment1[secure deployment b/c confidential data, ex: unmasked financial docs]:::comment
     classDef comment fill:#fff8b0,stroke:#391,stroke-width:1px,stroke-dasharray:5 5
 
     %% User interaction
@@ -157,14 +159,14 @@ graph TD
 - Secure Trusted Boundary 
 - Hosts original financial statements, generates masked versions and uploads to TradeJournal8 via TradeStorageService
 
-#### TradeMaskerFileWatcher
-- **Purpose:** Mask sensitive information (account numbers, personally identifiable information) in PDFs.
-- **Inputs/Outputs:** Input PDFs (file folder) → Masked Text File (filefolder)
-
-#### TradeUpdaterFileWatcher
-- **Purpose:** Uploads files to TradeFileStorage via API
-- **Inputs/Outputs:** Input Masked Text File (file folder) → Output Rest Call to service
-
+#### TradeFileWatcher
+- **Purpose:** Monitors a folder for new trade files (e.g., confirmations) and executes a pre-processing pipeline including masking sensitive information, archiving files locally, computing file hashes for duplicate detection, storing metadata, and finally uploading the masked text to the TradeFileStorage API.
+- **Inputs/Outputs:** 
+    - Input: PDF trade confirmations detected via filewatcher.
+    - Outputs:
+        - Original PDF and corresponding Masked Text File stored in the local Trade File Archive.
+        - Metadata (hash, file URIs, timestamps) stored in a lightweight local DB for duplicate checking
+        - Masked Text File posted to TradeFileStorage API.
 
 ### TradeJournal8 (System)
 

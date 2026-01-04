@@ -1,0 +1,4 @@
+watch_folder: "./incoming"
+mask_output_folder: "./masked"
+file_pattern: "*.pdf"
+poll_interval: 3
