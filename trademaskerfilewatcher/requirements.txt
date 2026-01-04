@@ -1,5 +1,0 @@
-watchdog
-pdfplumber
-reportlab
-pytest
-pyyaml
